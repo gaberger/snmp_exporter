@@ -28,7 +28,7 @@ import (
 	"github.com/soniah/gosnmp"
 	"gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/prometheus/snmp_exporter/config"
+	"forwardnetworks.com/snmp_exporter/config"
 )
 
 var (
@@ -232,6 +232,8 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 
 	metricTree := buildMetricTree(c.module.Metrics)
 	// Look for metrics that match each pdu.
+	json := getFwdInterfaceAlias(c.target, c.logger)
+
 PduLoop:
 	for oid, pdu := range oidToPdu {
 		head := metricTree
@@ -244,7 +246,11 @@ PduLoop:
 			}
 			if head.metric != nil {
 				// Found a match.
-				samples := pduToSamples(oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
+
+				// Get key for Forward Lookup
+				// var intf = strings.ToLower(labels["ifDescr"])
+
+				samples := pduToSamples(json, oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
 				for _, sample := range samples {
 					ch <- sample
 				}
@@ -323,10 +329,19 @@ func parseDateAndTime(pdu *gosnmp.SnmpPDU) (float64, error) {
 	return float64(t.Unix()), nil
 }
 
-func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, oidToPdu map[string]gosnmp.SnmpPDU, logger log.Logger) []prometheus.Metric {
+func pduToSamples(json string, indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, oidToPdu map[string]gosnmp.SnmpPDU, logger log.Logger) []prometheus.Metric {
 	var err error
-	// The part of the OID that is the indexes.
+	// var r ResponseStruct
+	var a []string
+
 	labels := indexesToLabels(indexOids, metric, oidToPdu)
+	intf := labels["ifDescr"]
+	a = getAlias(json, intf)
+	labels["ifAlias"] = strings.Join(a, ",")
+
+	level.Debug(logger).Log("msg", "Setting ifAlias", labels["ifAlias"])
+
+	// fmt.Printf("DEBUG for metric %s with labelnames %v labelvalues %v from indexOids %v\n", metric.Name, labelnames, labelvalues, indexOids)
 
 	value := getPduValue(pdu)
 	t := prometheus.UntypedValue

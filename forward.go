@@ -14,17 +14,20 @@ package main
 
 import (
 	"crypto/tls"
+	"strings"
+	// "strings"
 	// "encoding/json"
 	"fmt"
 	// "net/url"
 	// "strings"
 
 	// "net/url"
+	"os"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-resty/resty/v2"
 	"gopkg.in/thedevsaddam/gojsonq.v2"
-	"os"
 	// "forwardnetworks.com/snmp_exporter/config"
 	// "github.com/go-resty/resty/v2"
 	// "github.com/soniah/gosnmp"
@@ -63,19 +66,17 @@ func updateList(index int, value string, data []string) []string {
 // }
 
 type ResponseStruct []struct {
-	Name    string   `json:"name"`
 	Aliases []string `json:"aliases"`
 }
 
-func getFwdInterfaceAlias(device string, logger log.Logger) *gojsonq.JSONQ {
+func getFwdInterfaceAlias(device string, logger log.Logger) string {
 	// var intfEsc = strings.ToLower(url.QueryEscape(intf))
 	var server = "dev-vm-9:8443"
 	var snapshot = 298
 	var user = os.Getenv("FWD_ADMINUSER")
 	var password = os.Getenv("FWD_ADMINPASSWORD")
 	var urlString = fmt.Sprintf("https://%s/api/snapshots/%d/devices/%s/interfaces", server, snapshot, device)
-	// var r ResponseStruct
-	var jq *gojsonq.JSONQ
+	var result string
 
 	client := resty.New()
 	client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
@@ -88,17 +89,27 @@ func getFwdInterfaceAlias(device string, logger log.Logger) *gojsonq.JSONQ {
 
 	if err != nil {
 		fmt.Printf("The HTTP request failed with error %s\n", err)
+		result = ""
 	} else {
-
-	
-
+		result = resp.String()
 	}
-	return jq
+	return result
 }
 
-func getAlias(intf string)  {
+func getAlias(json string, intf string) []string {
+	var r ResponseStruct
+	var lowerIntf = strings.ToLower(intf)
+	var result []string
+	gojsonq.New().FromString(json).From("interfaces").Out(&r)
 
-	var json = resp.String()
-	// gojsonq.New().FromString(json).From("interfaces").Select("name", "aliases").Out(&r)
-	jq = gojsonq.New().FromString(json).From("interfaces")
+	for _, v := range r {
+		for _, i := range v.Aliases {
+			if (lowerIntf == i){
+				result = v.Aliases
+				break
+			}
+		}
+	}
+	// intfResult.Out(&r)
+	return result
 }
