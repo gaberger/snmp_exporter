@@ -16,7 +16,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/prometheus/snmp_exporter/config"
+	"forwardnetworks.com/snmp_exporter/config"
 )
 
 // The generator config.

@@ -15,6 +15,7 @@ package main
 import (
 	"crypto/tls"
 	"strings"
+
 	// "strings"
 	// "encoding/json"
 	"fmt"
@@ -51,49 +52,82 @@ func updateList(index int, value string, data []string) []string {
 	return data
 }
 
-// type ResponseStruct struct {
-// 	Aliases    []string    `json:"aliases"`
-// 	Topo       interface{} `json:"coveredTopo"`
-// 	FileLines  interface{} `json:"fileLines"`
-// 	Duplex     bool        `json:"fullDuplex"`
-// 	IPAddr     []string    `json:"ipAddresses"`
-// 	isDown     bool        `json:"isDown"`
-// 	macAddress string      `json:"macAddress"`
-// 	mtu        string      `json:"mtu"`
-// 	name       string      `json:"name"`
-// 	speed      string      `json:"speedMbps"`
-// 	intfType   string      `json:"type"`
-// }
-
+// ResponseStruct to capture interface aliases
 type ResponseStruct []struct {
 	Aliases []string `json:"aliases"`
 }
 
-func getFwdInterfaceAlias(device string, logger log.Logger) string {
-	// var intfEsc = strings.ToLower(url.QueryEscape(intf))
-	var server = "dev-vm-9:8443"
-	var snapshot = 298
+func callForwardAPI(url string, logger log.Logger) (string, error) {
+	var server = os.Getenv("FWD_SERVER")
 	var user = os.Getenv("FWD_ADMINUSER")
 	var password = os.Getenv("FWD_ADMINPASSWORD")
-	var urlString = fmt.Sprintf("https://%s/api/snapshots/%d/devices/%s/interfaces", server, snapshot, device)
-	var result string
+
+	if len(server) == 0 || len(user) == 0 || len(password) == 0 {
+		level.Debug(logger).Log("msg", "FWD Environment not set\n Set: FWD_SERVER, FWD_ADMINUSER, FWD_ADMINPASSWORD")
+		return "", fmt.Errorf("FWD ENV not set")
+	}
 
 	client := resty.New()
 	client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
 	client.SetHeader("Accept", "application/json")
 	client.SetBasicAuth(user, password)
-	level.Debug(logger).Log("msg", "Calling Forward API server", server)
 
-	// _, err := client.R().SetResult(&r).Get(urlString)
-	resp, err := client.R().Get(urlString)
+	var fwdURL = fmt.Sprintf("https://%s/%s", server, url)
+	level.Debug(logger).Log("msg", "Calling Forward API ", fwdURL)
+
+	resp, err := client.R().Get(fwdURL)
+	if err != nil {
+		if resp.StatusCode() != 200 {
+			return "", fmt.Errorf("response status code: %d", resp.StatusCode())
+		}
+	}
+	return resp.String(), nil
+}
+
+func getLatestSnapshot(networkID string, logger log.Logger) (string, error) {
+	var url = fmt.Sprintf("api/networks/%s/snapshots/latestProcessed", networkID)
+
+	resp, err := callForwardAPI(url, logger)
+
+	level.Debug(logger).Log("msg", "Latest Snapshot ", resp)
+
+	result, err := gojsonq.New().FromString(resp).FindR("id")
+	if err != nil {
+		level.Error(logger).Log(err)
+	}
+	snapshotID, _ := result.String()
+	level.Debug(logger).Log("SNAPSHOTID", snapshotID)
 
 	if err != nil {
-		fmt.Printf("The HTTP request failed with error %s\n", err)
-		result = ""
-	} else {
-		result = resp.String()
+		return "", fmt.Errorf("Error in HTTP Status: %s", err)
 	}
-	return result
+	return snapshotID, nil
+}
+
+func getFwdInterfaceAlias(device string, logger log.Logger) (string, error) {
+	var network = os.Getenv("FWD_NETWORK")
+	var snapshotID string
+	level.Debug(logger).Log("msg", "Calling getFwdInterfaceAlias")
+
+	if len(network) == 0 {
+		level.Debug(logger).Log("msg", "FWD_NETWORK not set")
+		return "", fmt.Errorf("FWD_NETWORK not set")
+	}
+
+	respSnapshot, respSnapshotErr := getLatestSnapshot(network, logger)
+	if respSnapshotErr != nil {
+		return "", fmt.Errorf("Error in HTTP Status: %s", respSnapshotErr)
+	}
+	snapshotID = respSnapshot
+
+	var url = fmt.Sprintf("api/snapshots/%s/devices/%s/interfaces", snapshotID, device)
+
+	respInterface, respInterfaceErr := callForwardAPI(url, logger)
+
+	if respInterfaceErr != nil {
+		return "", fmt.Errorf("Error in HTTP Status: %s", respInterfaceErr)
+	}
+	return respInterface, nil
 }
 
 func getAlias(json string, intf string) []string {
@@ -104,7 +138,7 @@ func getAlias(json string, intf string) []string {
 
 	for _, v := range r {
 		for _, i := range v.Aliases {
-			if (lowerIntf == i){
+			if lowerIntf == i {
 				result = v.Aliases
 				break
 			}

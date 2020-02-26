@@ -20,11 +20,11 @@ import (
 	"testing"
 
 	"github.com/go-kit/kit/log"
-	"github.com/prometheus/client_model/go"
+	io_prometheus_client "github.com/prometheus/client_model/go"
 	"github.com/soniah/gosnmp"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 
-	"github.com/prometheus/snmp_exporter/config"
+	"forwardnetworks.com/snmp_exporter/config"
 )
 
 func TestPduToSample(t *testing.T) {

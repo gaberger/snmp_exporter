@@ -20,14 +20,14 @@ import (
 	"path/filepath"
 	"strings"
 
+	"forwardnetworks.com/snmp_exporter/config"
+
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"gopkg.in/yaml.v2"
-
-	"github.com/prometheus/snmp_exporter/config"
 )
 
 // Generate a snmp_exporter config and write it out.

@@ -33,7 +33,7 @@ import (
 	"gopkg.in/alecthomas/kingpin.v2"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/prometheus/snmp_exporter/config"
+	"forwardnetworks.com/snmp_exporter/config"
 )
 
 var (

@@ -232,7 +232,7 @@ func (c collector) Collect(ch chan<- prometheus.Metric) {
 
 	metricTree := buildMetricTree(c.module.Metrics)
 	// Look for metrics that match each pdu.
-	json := getFwdInterfaceAlias(c.target, c.logger)
+	json, err := getFwdInterfaceAlias(c.target, c.logger)
 
 PduLoop:
 	for oid, pdu := range oidToPdu {
