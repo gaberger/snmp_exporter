@@ -89,7 +89,8 @@ func getLatestSnapshot(networkID string, logger log.Logger) (string, error) {
 
 	resp, err := callForwardAPI(url, logger)
 	if err != nil {
-		level.Error(logger).Log(err)
+		level.Error(logger).Log("Somthing went wrong ", err)
+		return "", nil
 	}
 	level.Debug(logger).Log("msg", "Latest Snapshot ", resp)
 
@@ -99,6 +100,7 @@ func getLatestSnapshot(networkID string, logger log.Logger) (string, error) {
 
 	if err != nil {
 		level.Error(logger).Log(err)
+		return "", fmt.Errorf("Could not retrieve snapshot")
 	}
 	snapshotID, _ := result.String()
 	level.Debug(logger).Log("SNAPSHOTID", snapshotID)
