@@ -88,10 +88,15 @@ func getLatestSnapshot(networkID string, logger log.Logger) (string, error) {
 	var url = fmt.Sprintf("api/networks/%s/snapshots/latestProcessed", networkID)
 
 	resp, err := callForwardAPI(url, logger)
-
+	if err != nil {
+		level.Error(logger).Log(err)
+	}
 	level.Debug(logger).Log("msg", "Latest Snapshot ", resp)
 
 	result, err := gojsonq.New().FromString(resp).FindR("id")
+
+	level.Debug(logger).Log("RESULT", result)
+
 	if err != nil {
 		level.Error(logger).Log(err)
 	}
